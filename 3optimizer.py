@@ -81,7 +81,7 @@ def find_optimal_build(
     which_flat: str = "non-attribute",
     which_modifier: str = "dimension",
     base_sp_modifier: float = 0.69,
-    filename="4modules-with-data.json.json",
+    filename="4modules-with-data.json",
 ):
     """
     Finds the optimal combination of modules to maximize skill damage
