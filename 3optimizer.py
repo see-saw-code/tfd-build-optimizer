@@ -1,6 +1,7 @@
 import decimal
-import simplejson as json
 from decimal import Decimal
+
+import simplejson as json
 from ortools.sat.python import cp_model
 
 

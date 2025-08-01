@@ -22,7 +22,7 @@ immutabledict==4.2.1
 ipykernel==6.30.0
 ipython==9.4.0
 ipython_pygments_lexers==1.1.1
-isort==6.0.1
+isort==5.13.2
 jedi==0.19.2
 jupyter_client==8.6.3
 jupyter_core==5.8.1

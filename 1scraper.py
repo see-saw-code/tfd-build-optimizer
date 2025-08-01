@@ -1,9 +1,10 @@
+import copy
+import gzip
+import time
 import urllib
 import urllib.request
+
 import simplejson as json
-import gzip
-import copy
-import time
 
 
 def get_module_summary():
