@@ -1,6 +1,7 @@
 import json
 from ortools.sat.python import cp_model
 
+
 def find_skill_power_fields(filename="4modules-with-data.json"):
     """
     Reads a JSON file and finds all "SkillPower" key-value pairs and the 'rune_group_name' for each module.
@@ -29,11 +30,61 @@ def find_skill_power_fields(filename="4modules-with-data.json"):
     return skill_power_data
 
 
+class Pct:
+    """
+    Scale percentages like 7.4 for 7.4% to integers, because the solver
+    requires integers.
+    """
+
+    # Pct() doesn't inherit from int because I don't want to be able to do Pct(Pct())
+    SCALE = 10
+
+    def __init__(self, val: float) -> None:
+        if isinstance(val, Pct):
+            self.val = val.val
+            return
+        if -1 < val < 0 or 0 < val < 1:
+            raise ValueError(
+                "Percentages should be input as written: 7.4 for 7.4%, not .074"
+            )
+        self.val = int(val * Pct.SCALE)
+
+    @classmethod
+    def rev(cls, val: int) -> float:
+        return val / Pct.SCALE
+
+    def __int__(self) -> int:
+        return self.val
+
+    def __gt__(self, other: object) -> bool:
+        return not self.__le__(other)
+
+    def __lt__(self, other: object) -> bool:
+        return not self.__ge__(other)
+
+    def __ge__(self, other: object) -> bool:
+        return self.val >= float(other)
+
+    def __le__(self, other: object) -> bool:
+        return self.val <= float(other)
+
+    def __pow__(self, x) -> int:
+        return self.val**x
+
+    def __mul__(self, other: object) -> object:
+        if isinstance(other, Pct):
+            return self.val * other.val
+        return self.val * other
+
+    def __str__(self) -> str:
+        return str(self.val)
+
+
 def find_optimal_build(
     max_capacity: int,
     which_flat: str = "non-attribute",
     which_modifier: str = "dimension",
-    base_sp_modifier: float = 68.9,
+    base_sp_modifier: float | Pct = 68.9,
     filename="4modules-with-data.json",
 ):
     """
@@ -47,7 +98,7 @@ def find_optimal_build(
         max_capacity (int): The maximum total cost for the modules.
         which_flat (str): The primary flat skill power type to focus on.
         which_modifier (str): The primary modifier skill power type to focus on.
-        base_sp_modifier (float): The character's base skill power modifier.
+        base_sp_modifier (float): The skill's base skill power modifier percentage.
         filename (str): The path to the JSON file with module data.
 
     Returns:
@@ -57,6 +108,7 @@ def find_optimal_build(
     with open(filename, "r", encoding="utf-8") as f:
         all_modules_data = json.load(f)
 
+    base_sp_modifier = Pct(base_sp_modifier)
     module_names = list(all_modules_data.keys())
     costs = {}
     flat_sp = {}
@@ -64,9 +116,28 @@ def find_optimal_build(
     skill_cooldowns = {}
     skill_durations = {}
 
-    # Use a scaling factor to work with integers, as the solver prefers them.
-    # We use 1000 to preserve one decimal place of precision (e.g., 7.5%)
-    SCALE = 1000
+    reactor_choices_1 = {
+        "skillAtkColossus": 2633.561,
+        "skillCooldown": Pct(7.4),
+        "skillDuration": Pct(10.6),
+    }
+    reactor_choices_2 = reactor_choices_1.copy()
+    reached_skill_power = 1.6
+    # Fixed cooldown reductions from other sources (e.g., Arche Tuning, Reactor)
+    tb_arche_tuning_cd_scaled = Pct(-5.5)
+    tb_reactor_cd_scaled = Pct(-7.4)
+    tb_skill_atk_vs_colossus_scaled = Pct(54.2)
+
+    # TODO: Optimize across the whole formula.
+    # (
+    #   (
+    #       (
+    #           (Reactor Skill Power * (Reached Skill Power + Mods/Abilites that Increase Reached Skill Power) + Atk Versus Colossus) +
+    #           (Arche Tuning Skill Power * (Reached Skill Power + Mods/Abilites that Increase Reached Skill Power))
+    #       ) *
+    #       (1 + Base Skill Power Boost)
+    #   ) * (1 + Attribute Skill Boost)
+    # ) * (1 + Type Skill Boost) = Skill Power
 
     for name, data in all_modules_data.items():
         # Use the cost from the last attribute level
@@ -75,19 +146,17 @@ def find_optimal_build(
         flat_key = f"{which_flat}SkillPowerFlat"
         all_flat_key = "allSkillPowerFlat"
         current_flat_sp = data.get(flat_key, 0.0) + data.get(all_flat_key, 0.0)
-        flat_sp[name] = int(
-            current_flat_sp * SCALE / 100
-        )  # Convert percentage to float
+        flat_sp[name] = Pct(current_flat_sp)
 
         modifier_key = f"{which_modifier}SkillPowerModifier"
         all_modifier_key = "allSkillPowerModifier"
         current_modifier_sp = data.get(modifier_key, 0.0) + data.get(
             all_modifier_key, 0.0
         )
-        modifier_sp[name] = int(current_modifier_sp * SCALE / 100)
+        modifier_sp[name] = Pct(current_modifier_sp)
 
-        skill_cooldowns[name] = int(data.get("skillCooldown", 0.0) * SCALE / 100)
-        skill_durations[name] = int(data.get("skillDuration", 0.0) * SCALE / 100)
+        skill_cooldowns[name] = Pct(data.get("skillCooldown", 0.0))
+        skill_durations[name] = Pct(data.get("skillDuration", 0.0))
 
     # --- Create the model ---
     model = cp_model.CpModel()
@@ -102,7 +171,7 @@ def find_optimal_build(
     )
 
     # 2. No more than this many modules can be selected.
-    model.Add(sum(selected.values()) <= 9)
+    model.Add(sum(selected.values()) <= 10)
 
     # 3. No more than one module for each non-blank rune_group_name.
     rune_groups = {}
@@ -116,18 +185,14 @@ def find_optimal_build(
 
     # 4. The final skill duration must be greater than the final skill cooldown.
 
-    # Fixed cooldown reductions from other sources (e.g., Arche Tuning, Reactor)
-    arche_tuning_cd_scaled = int(-5.5 * SCALE / 100)
-    reactor_cd_scaled = int(-7.4 * SCALE / 100)
-
-    total_cooldown_var = model.NewIntVar(-1000 * SCALE, 1000 * SCALE, "total_cooldown")
+    total_cooldown_var = model.NewIntVar(Pct(-1000), Pct(1000), "total_cooldown")
     model.Add(
         total_cooldown_var
         == sum(selected[name] * skill_cooldowns[name] for name in module_names)
-        + arche_tuning_cd_scaled
-        + reactor_cd_scaled
+        + tb_arche_tuning_cd_scaled
+        + tb_reactor_cd_scaled
     )
-    total_duration_var = model.NewIntVar(-1000 * SCALE, 1000 * SCALE, "total_duration")
+    total_duration_var = model.NewIntVar(Pct(-1000), Pct(1000), "total_duration")
     model.Add(
         total_duration_var
         == sum(selected[name] * skill_durations[name] for name in module_names)
@@ -138,45 +203,39 @@ def find_optimal_build(
     base_cooldown_s = 40
 
     model.Add(
-        base_duration_s * (SCALE + total_duration_var)
-        > base_cooldown_s * (SCALE + total_cooldown_var)
+        base_duration_s * (Pct(100) + total_duration_var)
+        >= base_cooldown_s * (Pct(100) + total_cooldown_var)
     )
 
     # --- Define the objective function ---
     # We want to maximize (1 + total_flat_sp) * (1 + base_sp_modifier + total_modifier_sp)
 
     # Create integer variables for the total skill powers.
-    total_flat_sp_var = model.NewIntVar(-1000 * SCALE, 1000 * SCALE, "total_flat_sp")
+    total_flat_sp_var = model.NewIntVar(Pct(-1000), Pct(1000), "total_flat_sp")
     model.Add(
         total_flat_sp_var
         == sum(selected[name] * flat_sp[name] for name in module_names)
     )
 
-    total_modifier_sp_var = model.NewIntVar(
-        -1000 * SCALE, 1000 * SCALE, "total_modifier_sp"
-    )
+    total_modifier_sp_var = model.NewIntVar(Pct(-1000), Pct(1000), "total_modifier_sp")
     model.Add(
         total_modifier_sp_var
         == sum(selected[name] * modifier_sp[name] for name in module_names)
+        + base_sp_modifier
     )
 
-    # Create variables for the two terms of the product, scaled up.
-    term1 = model.NewIntVar(0, 2000 * SCALE, "term1")
-    model.Add(term1 == (1 * SCALE) + total_flat_sp_var)
-
-    base_sp_modifier_int = int(base_sp_modifier * SCALE / 100)
-    term2 = model.NewIntVar(0, 2000 * SCALE, "term2")
-    model.Add(term2 == (1 * SCALE) + base_sp_modifier_int + total_modifier_sp_var)
-
-    # Create the objective variable (the product of the two terms).
-    objective_var = model.NewIntVar(0, 4000 * SCALE * SCALE, "objective")
-    model.AddMultiplicationEquality(objective_var, [term1, term2])
+    # Create the objective variable (the product of the two terms, skill_power_modifier * skill_power_value).
+    objective_var = model.NewIntVar(0, (Pct(1000) * Pct(1000)) * 2, "objective")
+    model.AddMultiplicationEquality(
+        objective_var, [total_flat_sp_var, total_modifier_sp_var]
+    )
 
     model.Maximize(objective_var)
 
     # --- Solve the model ---
     solver = cp_model.CpSolver()
     status = solver.Solve(model)
+    print(solver.Values([total_modifier_sp_var, total_flat_sp_var, objective_var]))
 
     # --- Extract and return the results ---
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
@@ -185,8 +244,7 @@ def find_optimal_build(
             for name, var in selected.items()
             if solver.Value(var)
         }
-        max_damage = solver.ObjectiveValue() / (SCALE * SCALE)
-        return optimal_modules, max_damage
+        return optimal_modules
 
     return None, None
 
@@ -196,23 +254,21 @@ if __name__ == "__main__":
     MAX_MODULE_CAPACITY = (
         85 - 6
     ) * 2  # Max is 85, minus 6 for transcendent, times two because all costs are halved
-    CHARACTER_BASE_MODIFIER = 0.69
+    CHARACTER_BASE_MODIFIER = 68.9
     FLAT_SKILL_TYPE = "non-attribute"
     MODIFIER_SKILL_TYPE = "dimension"
 
     print(f"Finding optimal build with max capacity: {MAX_MODULE_CAPACITY}...")
 
-    optimal_set, max_damage = find_optimal_build(
+    optimal_set = find_optimal_build(
         max_capacity=MAX_MODULE_CAPACITY,
         which_flat=FLAT_SKILL_TYPE,
         which_modifier=MODIFIER_SKILL_TYPE,
-        base_sp_modifier=CHARACTER_BASE_MODIFIER,
+        base_sp_modifier=Pct(CHARACTER_BASE_MODIFIER),
     )
 
     if optimal_set:
-        print(
-            f"\nOptimal build found with estimated damage multiplier: {max_damage:.2f}"
-        )
+        print(f"\nOptimal build found")
         total_cooldown = sum(
             module.get("skillCooldown", 0.0) for module in optimal_set.values()
         )
@@ -233,7 +289,7 @@ if __name__ == "__main__":
             except IndexError:
                 pass
             print(
-                f"- {module:30s} {optimal_set[module]['rune_group_name']:15s} {which:30s} pow {optimal_set[module].get(which, 0):>6.2f} cd {optimal_set[module].get('skillCooldown', 0):>6.2f} dur {optimal_set[module].get('skillDuration', 0):>6.2f}"
+                f"- {module:30s} {optimal_set[module]['rune_group_name']:12s} {which:30s} pow {optimal_set[module].get(which, 0):>6.2f} cd {optimal_set[module].get('skillCooldown', 0):>6.2f} dur {optimal_set[module].get('skillDuration', 0):>6.2f}"
             )
 
     else:
