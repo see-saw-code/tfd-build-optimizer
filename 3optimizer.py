@@ -80,7 +80,7 @@ def find_optimal_build(
     max_capacity: int,
     which_flat: str = "non-attribute",
     which_modifier: str = "dimension",
-    base_sp_modifier: float = 0.69,
+    base_sp_modifier: float = 68.9,
     filename="4modules-with-data.json",
 ):
     """
@@ -211,7 +211,7 @@ def find_optimal_build(
     term1 = model.NewIntVar(0, 2000 * SCALE, "term1")
     model.Add(term1 == (1 * SCALE) + total_flat_sp_var)
 
-    base_sp_modifier_int = int(base_sp_modifier * SCALE)
+    base_sp_modifier_int = int(base_sp_modifier * SCALE / 100)
     term2 = model.NewIntVar(0, 2000 * SCALE, "term2")
     model.Add(term2 == (1 * SCALE) + base_sp_modifier_int + total_modifier_sp_var)
 
