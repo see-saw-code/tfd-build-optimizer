@@ -1,53 +1,6 @@
 import json
 from ortools.sat.python import cp_model
 
-
-def optimize_me(
-    which_flat="non-attribute", which_modifier="dimension", base_sp_modifier=0.69
-):
-    # (
-    #   (
-    #       (
-    #           (
-    #               (Reactor Skill Power + Arche Tuning Skill Power) * (Reached Skill Power + Mods that Increase Reached Skill Power)
-    #           )
-    #       * (1 + Base Skill Power Boost Ratio)
-    #   ) * (1 + Attribute Skill Boost Ratio)
-    # ) * (1 + Type Skill Boost Ratio))
-    # TODO: Manage reactor skill boosts and arche tuning skill boosts and bonus atk vs colossi
-    reactor_skill_power = 1
-    arche_tuning_skill_power = 1
-    reached_skill_power = 1
-    base_skill_power_boost_ratio = 1
-    attribute_skill_boost_ratio = 1
-    type_skill_boost_ratio = 1
-
-    which_sp_flat = {
-        "chill": 0,
-        "electric": 0,
-        "fire": 0,
-        "non-attribute": 0,
-        "toxic": 0,
-        "all": 0,
-    }
-    skill_power = which_sp_flat[which_flat] + which_sp_flat["all"]
-
-    which_sp_modifier = {
-        "dimension": 0,
-        "fusion": 0,
-        "singular": 0,
-        "tech": 0,
-        "all": 0,
-    }
-    skill_power_modifier = (
-        which_sp_modifier[which_modifier] + which_sp_modifier["all"] + base_sp_modifier
-    )
-
-    skill_damage = (1 + skill_power) * (1 + skill_power_modifier)
-
-    return skill_damage
-
-
 def find_skill_power_fields(filename="4modules-with-data.json"):
     """
     Reads a JSON file and finds all "SkillPower" key-value pairs and the 'rune_group_name' for each module.
