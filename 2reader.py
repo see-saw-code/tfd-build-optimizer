@@ -1,14 +1,15 @@
-import json
+import simplejson as json
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, Callable, Dict, List
 
 
 def convert():
     with open("1modules-summary.json", "r") as f:
-        summary = json.load(f)
+        summary = json.load(f, use_decimal=True)
     with open("2modules-details.json", "r") as f:
-        details = json.load(f)
+        details = json.load(f, use_decimal=True)
     modules = {x["name"]: x for y in summary for x in y["ResultData"]["List"]}
     for module, module_data in modules.items():
         for detail in details:
@@ -22,7 +23,7 @@ def convert():
                 del detail_data["acquisition"]
                 modules[module].update(detail_data)
     with open("3modules-flattened.json", "w") as f:
-        json.dump(modules, f, indent=4)
+        json.dump(modules, f, indent=4, use_decimal=True)
 
 
 @dataclass
@@ -54,7 +55,7 @@ def characterize():
             Characterize(
                 (x.lower() + "SkillPowerModifier"),
                 re.compile(x + r" Skill Power Modifier\s+(\S+?)%?\[(.)"),
-                float,
+                Decimal,
                 lambda d: True,
             )
             for x in skill_power_modifiers
@@ -65,7 +66,7 @@ def characterize():
             Characterize(
                 x.lower() + "SkillPowerFlat",
                 re.compile(x + r" Skill Power\s+\+?(-?\S+?)%?\[(.)"),
-                float,
+                Decimal,
                 lambda d: True,
             )
             for x in skill_powers
@@ -75,7 +76,7 @@ def characterize():
         Characterize(
             "skillDuration",
             re.compile(r"Skill Duration\s+\+?(-?\S+?)%?\[(.)"),
-            float,
+            Decimal,
             lambda d: True,
         )
     )
@@ -83,7 +84,7 @@ def characterize():
         Characterize(
             "skillCooldown",
             re.compile(r"Skill Cooldown\s+\+?(-?\S+?)%?\[(.)"),
-            float,
+            Decimal,
             lambda d: True,
         )
     )
@@ -92,7 +93,7 @@ def characterize():
         Characterize(
             "allSkillPowerModifier",
             re.compile(r"Skill Power Modifier\s+(\S+?)%?\[(.)"),
-            float,
+            Decimal,
             lambda d: not any("SkillPowerModifier" in x for x in d.keys()),
         ),
     )
@@ -100,12 +101,12 @@ def characterize():
         Characterize(
             "allSkillPowerFlat",
             re.compile(r"Skill Power\s+\+?(-?\S+?)%?\[(.)"),
-            float,
+            Decimal,
             lambda d: not any("SkillPowerFlat" in x for x in d.keys()),
         )
     )
     with open("3modules-flattened.json", "r") as f:
-        data = json.load(f)
+        data = json.load(f, use_decimal=True)
     for key, value in data.items():
         for pattern in patterns:
             match = re.search(pattern.regex, value["attributes"][-1]["desc"])
@@ -124,7 +125,7 @@ def characterize():
                 value[pattern.new_key] = pattern.new_type(match.group(1))
                 value[pattern.new_key + "Type"] = mode
     with open("4modules-with-data.json", "w") as f:
-        json.dump(data, f, indent=4)
+        json.dump(data, f, indent=4, use_decimal=True)
 
 
 if __name__ == "__main__":

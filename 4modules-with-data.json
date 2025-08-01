@@ -7935,7 +7935,7 @@
                 "desc": "During Charged Sub Attack, grants Exalt for 20s\nAt 3 stacks, Exalt converts to Passion. Active Skill 1: Cooldown -65%[x] and Skill Power +-10%[+] for 10s"
             }
         ],
-        "allSkillPowerFlat": -10.0,
+        "allSkillPowerFlat": -10,
         "allSkillPowerFlatType": "add"
     },
     "Corrosive Plasma": {
@@ -8110,7 +8110,7 @@
                 "desc": "When defeating an enemy inflicted with debuffs, Skill Power Modifier +5%[+] per defeated enemy for 10s (Up to 10 stacks)"
             }
         ],
-        "allSkillPowerModifier": 5.0,
+        "allSkillPowerModifier": 5,
         "allSkillPowerModifierType": "add"
     },
     "Defense Master": {
@@ -8553,7 +8553,7 @@
                 "desc": "When attacking enemies with the fourth skill, Skill Cost -37%[+] and Skill Power -40%[+] for 10s"
             }
         ],
-        "allSkillPowerFlat": -40.0,
+        "allSkillPowerFlat": -40,
         "allSkillPowerFlatType": "add"
     },
     "Fire Conductor": {
@@ -9655,7 +9655,7 @@
                 "desc": "When landing a Firearm Critical Hit on an enemy inflicted with a debuff, Skill Power Modifier +5%[+] for 10s (Up to 10 stacks)"
             }
         ],
-        "allSkillPowerModifier": 5.0,
+        "allSkillPowerModifier": 5,
         "allSkillPowerModifierType": "add"
     },
     "Long-Distance Maneuvering": {
@@ -12802,7 +12802,7 @@
                 "desc": "When HP is 50% or lower, Skill Power Modifier +30%[+], Firearm (Explosive) ATK +30%[x]"
             }
         ],
-        "allSkillPowerModifier": 30.0,
+        "allSkillPowerModifier": 30,
         "allSkillPowerModifierType": "add"
     },
     "Weak Point Expansion": {
@@ -14105,7 +14105,7 @@
                 "desc": "Skill Power +44.4%[+], Chill Skill Power +19%[+]"
             }
         ],
-        "chillSkillPowerFlat": 19.0,
+        "chillSkillPowerFlat": 19,
         "chillSkillPowerFlatType": "add"
     },
     "Chill Priority": {
@@ -15510,7 +15510,7 @@
                 "desc": "Skill Power +44.4%[+], Electric Skill Power +19%[+]"
             }
         ],
-        "electricSkillPowerFlat": 19.0,
+        "electricSkillPowerFlat": 19,
         "electricSkillPowerFlatType": "add"
     },
     "Electric Priority": {
@@ -15979,7 +15979,7 @@
                 "desc": "Skill Power +44.4%[+], Fire Skill Power +19%[+]"
             }
         ],
-        "fireSkillPowerFlat": 19.0,
+        "fireSkillPowerFlat": 19,
         "fireSkillPowerFlatType": "add"
     },
     "Fire Priority": {
@@ -18471,7 +18471,7 @@
                 "desc": "Skill Cost -35.4%[+], Skill Power Modifier -20%[+]"
             }
         ],
-        "allSkillPowerModifier": -20.0,
+        "allSkillPowerModifier": -20,
         "allSkillPowerModifierType": "add"
     },
     "Maximize Duration": {
@@ -18546,7 +18546,7 @@
                 "desc": "Skill Duration +40%[+], Skill Power Modifier -21.1%[+]"
             }
         ],
-        "skillDuration": 40.0,
+        "skillDuration": 40,
         "skillDurationType": "add",
         "allSkillPowerModifier": -21.1,
         "allSkillPowerModifierType": "add"
@@ -18817,7 +18817,7 @@
                 "desc": "Skill Power Modifier +96.1%[+], Skill Cooldown +50%[+]"
             }
         ],
-        "skillCooldown": 50.0,
+        "skillCooldown": 50,
         "skillCooldownType": "add",
         "allSkillPowerModifier": 96.1,
         "allSkillPowerModifierType": "add"
@@ -18894,7 +18894,7 @@
                 "desc": "Skill Effect Range +94.4%[+], Skill Power Modifier -20%[+]"
             }
         ],
-        "allSkillPowerModifier": -20.0,
+        "allSkillPowerModifier": -20,
         "allSkillPowerModifierType": "add"
     },
     "Maximize Skill": {
@@ -18969,7 +18969,7 @@
                 "desc": "Skill Power +87.6%[+], Skill Cooldown +50%[+]"
             }
         ],
-        "skillCooldown": 50.0,
+        "skillCooldown": 50,
         "skillCooldownType": "add",
         "allSkillPowerFlat": 87.6,
         "allSkillPowerFlatType": "add"
@@ -20110,7 +20110,7 @@
                 "desc": "Skill Power +44.4%[+], Non-Attribute Skill Power +19%[+]"
             }
         ],
-        "non-attributeSkillPowerFlat": 19.0,
+        "non-attributeSkillPowerFlat": 19,
         "non-attributeSkillPowerFlatType": "add"
     },
     "Non-Attribute Syncytium": {
@@ -21288,7 +21288,7 @@
                 "desc": "Firearm ATK +15%[x], Skill Power Modifier -15%[+]"
             }
         ],
-        "allSkillPowerModifier": -15.0,
+        "allSkillPowerModifier": -15,
         "allSkillPowerModifierType": "add"
     },
     "Singular Amplification": {
@@ -22710,7 +22710,7 @@
                 "desc": "Skill Power +44.4%[+], Toxic Skill Power +19%[+]"
             }
         ],
-        "toxicSkillPowerFlat": 19.0,
+        "toxicSkillPowerFlat": 19,
         "toxicSkillPowerFlatType": "add"
     },
     "Toxin Integration": {
@@ -26015,7 +26015,7 @@
                 "desc": "Skill Power +65%[+]"
             }
         ],
-        "allSkillPowerFlat": 65.0,
+        "allSkillPowerFlat": 65,
         "allSkillPowerFlatType": "add"
     },
     "Recycling Genius": {

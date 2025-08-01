@@ -1,4 +1,6 @@
-import json
+import decimal
+import simplejson as json
+from decimal import Decimal
 from ortools.sat.python import cp_model
 
 
@@ -15,7 +17,7 @@ def find_skill_power_fields(filename="4modules-with-data.json"):
     """
     skill_power_data = {}
     with open(filename, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        data = json.load(f, use_decimal=True)
 
     # The data is a dictionary of modules, where each module is a dictionary.
     for module_name, module_data in data.items():
@@ -30,28 +32,34 @@ def find_skill_power_fields(filename="4modules-with-data.json"):
     return skill_power_data
 
 
-class Pct:
+class Scaled:
     """
     Scale percentages like 7.4 for 7.4% to integers, because the solver
     requires integers.
     """
 
-    # Pct() doesn't inherit from int because I don't want to be able to do Pct(Pct())
-    SCALE = 10
+    # This doesn't inherit from int because I don't want to implicitly cast to int.
+    # So we implement a bunch of stuff the hard way.
 
-    def __init__(self, val: float) -> None:
-        if isinstance(val, Pct):
+    SCALE = 0
+
+    def __init__(self, val: Decimal) -> None:
+        if isinstance(val, Scaled):
             self.val = val.val
             return
         if -1 < val < 0 or 0 < val < 1:
             raise ValueError(
-                "Percentages should be input as written: 7.4 for 7.4%, not .074"
+                "Scaled values should be input as, e.g: 7.4 for 7.4%, not .074"
             )
-        self.val = int(val * Pct.SCALE)
+        # Use Decimal() here to get the precise representation and avoid floating-point errors.
+        val_d = Decimal(str(val)) * Decimal(self.SCALE)
+        if val_d % 1:
+            raise ValueError(f"SCALE is too small, {val} * {self.SCALE} = {val_d}")
+        self.val = int(val_d)
 
     @classmethod
-    def rev(cls, val: int) -> float:
-        return val / Pct.SCALE
+    def rev(cls, val: int) -> Decimal:
+        return val / cls.SCALE
 
     def __int__(self) -> int:
         return self.val
@@ -63,16 +71,16 @@ class Pct:
         return not self.__ge__(other)
 
     def __ge__(self, other: object) -> bool:
-        return self.val >= float(other)
+        return self.val >= other
 
     def __le__(self, other: object) -> bool:
-        return self.val <= float(other)
+        return self.val <= other
 
     def __pow__(self, x) -> int:
         return self.val**x
 
     def __mul__(self, other: object) -> object:
-        if isinstance(other, Pct):
+        if isinstance(other, type(self)):
             return self.val * other.val
         return self.val * other
 
@@ -80,11 +88,24 @@ class Pct:
         return str(self.val)
 
 
+class Pct(Scaled):
+    """Percentages, represented here by a class so that they are all scaled the same."""
+
+    # "Battle of Stamina" has a +8.79 percent, so we need to multiply by 100.
+    SCALE = 100
+
+
+class Time(Scaled):
+    """Time in seconds, represented here by a class so that they are all scaled the same."""
+
+    SCALE = 10
+
+
 def find_optimal_build(
     max_capacity: int,
     which_flat: str = "non-attribute",
     which_modifier: str = "dimension",
-    base_sp_modifier: float | Pct = 68.9,
+    base_sp_modifier: Decimal | Pct = Decimal("68.9"),
     filename="4modules-with-data.json",
 ):
     """
@@ -95,18 +116,18 @@ def find_optimal_build(
     - The final skill duration must be greater than the final skill cooldown.
 
     Args:
-        max_capacity (int): The maximum total cost for the modules.
-        which_flat (str): The primary flat skill power type to focus on.
-        which_modifier (str): The primary modifier skill power type to focus on.
-        base_sp_modifier (float): The skill's base skill power modifier percentage.
-        filename (str): The path to the JSON file with module data.
+        max_capacity: The maximum total cost for the modules.
+        which_flat: The primary flat skill power type to focus on.
+        which_modifier: The primary modifier skill power type to focus on.
+        base_sp_modifier: The skill's base skill power modifier percentage.
+        filename: The path to the JSON file with module data.
 
     Returns:
         tuple: A tuple containing the list of selected module names and the
                maximized skill damage, or (None, None) if no solution is found.
     """
     with open(filename, "r", encoding="utf-8") as f:
-        all_modules_data = json.load(f)
+        all_modules_data = json.load(f, use_decimal=True)
 
     base_sp_modifier = Pct(base_sp_modifier)
     module_names = list(all_modules_data.keys())
@@ -116,17 +137,17 @@ def find_optimal_build(
     skill_cooldowns = {}
     skill_durations = {}
 
-    reactor_choices_1 = {
-        "skillAtkColossus": 2633.561,
-        "skillCooldown": Pct(7.4),
-        "skillDuration": Pct(10.6),
-    }
-    reactor_choices_2 = reactor_choices_1.copy()
-    reached_skill_power = 1.6
+    # reactor_choices_1 = {
+    #    "skillAtkColossus": 2633.561,
+    #    "skillCooldown": Pct(7.4),
+    #    "skillDuration": Pct(10.6),
+    # }
+    # reactor_choices_2 = reactor_choices_1.copy()
+    # reached_skill_power = 1.6
     # Fixed cooldown reductions from other sources (e.g., Arche Tuning, Reactor)
     tb_arche_tuning_cd_scaled = Pct(-5.5)
     tb_reactor_cd_scaled = Pct(-7.4)
-    tb_skill_atk_vs_colossus_scaled = Pct(54.2)
+    # tb_skill_atk_vs_colossus_scaled = Pct(54.2)
 
     # TODO: Optimize across the whole formula.
     # (
@@ -145,18 +166,16 @@ def find_optimal_build(
 
         flat_key = f"{which_flat}SkillPowerFlat"
         all_flat_key = "allSkillPowerFlat"
-        current_flat_sp = data.get(flat_key, 0.0) + data.get(all_flat_key, 0.0)
+        current_flat_sp = data.get(flat_key, 0) + data.get(all_flat_key, 0)
         flat_sp[name] = Pct(current_flat_sp)
 
         modifier_key = f"{which_modifier}SkillPowerModifier"
         all_modifier_key = "allSkillPowerModifier"
-        current_modifier_sp = data.get(modifier_key, 0.0) + data.get(
-            all_modifier_key, 0.0
-        )
+        current_modifier_sp = data.get(modifier_key, 0) + data.get(all_modifier_key, 0)
         modifier_sp[name] = Pct(current_modifier_sp)
 
-        skill_cooldowns[name] = Pct(data.get("skillCooldown", 0.0))
-        skill_durations[name] = Pct(data.get("skillDuration", 0.0))
+        skill_cooldowns[name] = Pct(data.get("skillCooldown", 0))
+        skill_durations[name] = Pct(data.get("skillDuration", 0))
 
     # --- Create the model ---
     model = cp_model.CpModel()
@@ -199,8 +218,8 @@ def find_optimal_build(
     )
 
     # Base values for the character's skill
-    base_duration_s = 5
-    base_cooldown_s = 40
+    base_duration_s = Time(5)
+    base_cooldown_s = Time(40 - 0.3)  # Within 0.3s is the same server tick.
 
     model.Add(
         base_duration_s * (Pct(100) + total_duration_var)
@@ -250,11 +269,14 @@ def find_optimal_build(
 
 
 if __name__ == "__main__":
+    c = decimal.getcontext()
+    c.traps[decimal.FloatOperation] = True
+
     # Define your constraints
     MAX_MODULE_CAPACITY = (
         85 - 6
     ) * 2  # Max is 85, minus 6 for transcendent, times two because all costs are halved
-    CHARACTER_BASE_MODIFIER = 68.9
+    CHARACTER_BASE_MODIFIER = Decimal("68.9")
     FLAT_SKILL_TYPE = "non-attribute"
     MODIFIER_SKILL_TYPE = "dimension"
 
@@ -268,13 +290,13 @@ if __name__ == "__main__":
     )
 
     if optimal_set:
-        print(f"\nOptimal build found")
+        print("\nOptimal build found")
         total_cooldown = sum(
-            module.get("skillCooldown", 0.0) for module in optimal_set.values()
+            module.get("skillCooldown", 0) for module in optimal_set.values()
         )
         print(f"Total Skill Cooldown: {total_cooldown:.2f}%")
         total_duration = sum(
-            module.get("skillDuration", 0.0) for module in optimal_set.values()
+            module.get("skillDuration", 0) for module in optimal_set.values()
         )
         print(f"Total Skill Duration: {total_duration:.2f}%")
         print(f"Selected Modules ({len(optimal_set)}):")

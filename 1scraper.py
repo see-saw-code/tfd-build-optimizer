@@ -1,6 +1,6 @@
 import urllib
 import urllib.request
-import json
+import simplejson as json
 import gzip
 import copy
 import time
@@ -42,7 +42,7 @@ def get_module_summary():
                 "socketType": "",
             }
 
-            json_bytes = json.dumps(body).encode("ascii")
+            json_bytes = json.dumps(body, use_decimal=True).encode("ascii")
             req.add_header("Content-Length", len(json_bytes))
 
             with urllib.request.urlopen(req, json_bytes) as resp:
@@ -50,8 +50,8 @@ def get_module_summary():
                     txt = gzip.decompress(resp.read())
                 else:
                     txt = resp.read().decode()
-            j = json.loads(txt)
-            json.dump(j, f, indent=4)
+            j = json.loads(txt, use_decimal=True)
+            json.dump(j, f, indent=4, use_decimal=True)
 
             if page * page_sz > j["ResultData"]["n8TotalCount"]:
                 f.write("\n")
@@ -63,7 +63,7 @@ def get_module_summary():
 
 def get_module_details():
     with open("1modules-summary.json", "r") as f:
-        j = json.load(f)
+        j = json.load(f, use_decimal=True)
     req2_fmt = urllib.request.Request(
         "https://tfd-api.nexon.com/api/library/en/modules/{num}"
     )
@@ -95,8 +95,8 @@ def get_module_details():
                         txt = gzip.decompress(resp2.read())
                     else:
                         txt = resp2.read().decode()
-                j2 = json.loads(txt)
-                json.dump(j2, f, indent=4)
+                j2 = json.loads(txt, use_decimal=True)
+                json.dump(j2, f, indent=4, use_decimal=True)
                 if entry_idx != len(page["ResultData"]["List"]) - 1:
                     f.write(",")
                 f.write("\n")
